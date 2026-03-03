@@ -52,14 +52,19 @@ def read_oai_txt(path: Path, *, skip_dictionary_row: bool = True) -> pd.DataFram
     if max(scores.values()) == 0:
         raise ValueError(f"File does not appear tabular: {path}")
 
-    frame = pd.read_csv(
-        path,
-        sep=delimiter,
-        dtype=str,
-        keep_default_na=False,
-        encoding=encoding,
-        engine="python",
-    )
+    read_kwargs = {
+        "sep": delimiter,
+        "dtype": str,
+        "keep_default_na": False,
+        "encoding": encoding,
+        "engine": "python",
+    }
+    try:
+        frame = pd.read_csv(path, **read_kwargs)
+    except pd.errors.ParserError:
+        # Some OAI image03 exports contain malformed quoting on a small number of lines.
+        # Fallback to skipping only the malformed lines so the rest of the table is still usable.
+        frame = pd.read_csv(path, on_bad_lines="skip", **read_kwargs)
     frame.columns = [str(column).strip() for column in frame.columns]
     frame = frame.fillna("")
 
